@@ -1,7 +1,8 @@
-"""Фоновые напоминания клиентам: за день до записи.
+"""Фоновые задачи: напоминания клиентам и автоочистка завершённых записей.
 
 Запускается из bot.py как фоновая задача и проверяет базу каждые 30 минут.
 Каждому клиенту напоминание уходит один раз (флаг reminded в базе).
+Завершённые записи удаляются через сутки после отметки «Завершить».
 """
 
 import asyncio
@@ -11,7 +12,7 @@ from datetime import datetime, timedelta
 from aiogram import Bot
 
 from config import REMIND_AFTER_HOUR
-from database import get_pending_reminders, mark_reminded
+from database import cleanup_done_bookings, get_pending_reminders, mark_reminded
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,13 @@ CHECK_INTERVAL_SECONDS = 30 * 60  # проверять каждые 30 мину�
 
 
 async def reminder_loop(bot: Bot) -> None:
-    """Каждые 30 минут рассылает напоминания о завтрашних записях."""
+    """Каждые 30 минут: напоминания о завтрашних записях + автоочистка."""
     while True:
         try:
+            removed = cleanup_done_bookings()
+            if removed:
+                logger.info("Автоочистка: удалено завершённых записей — %s", removed)
+
             now = datetime.now()
             # напоминания уходят не раньше REMIND_AFTER_HOUR (например, с 9 утра)
             if now.hour >= REMIND_AFTER_HOUR:

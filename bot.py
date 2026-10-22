@@ -8,7 +8,9 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.enums import ParseMode
 
 from config import BOT_TOKEN, PROXY_URL
 from database import init_db
@@ -34,10 +36,18 @@ async def main() -> None:
 
     init_db()  # создаём базу данных при старте
 
-    bot = Bot(token=BOT_TOKEN, session=AiohttpSession(proxy=PROXY_URL))
+    bot = Bot(
+        token=BOT_TOKEN,
+        session=AiohttpSession(proxy=PROXY_URL),
+        # Разрешаем HTML во всех сообщениях: <b>, <i>, <code> и т.п.
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     print("Бот записи запущен. Нажми Ctrl+C, чтобы остановить.")
-    asyncio.create_task(reminder_loop(bot))  # фоновые напоминания клиентам
-    await dp.start_polling(bot)
+    reminder_task = asyncio.create_task(reminder_loop(bot))  # напоминания + очистка
+    try:
+        await dp.start_polling(bot)
+    finally:
+        reminder_task.cancel()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Общие команды: /start, прайс, мои записи (с отменой) и подсказка на остальное."""
 
 from datetime import datetime
+from html import escape
 
 from aiogram import F, Router
 from aiogram.filters import CommandStart
@@ -30,7 +31,7 @@ def _fmt_day(iso: str) -> str:
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     await message.answer(
-        f"Привет, {message.from_user.full_name}! 👋\n"
+        f"Привет, {escape(message.from_user.full_name)}! 👋\n"
         "Это бот записи. Выбери, что дальше:",
         reply_markup=main_menu(_is_admin(message.from_user.id)),
     )
@@ -46,7 +47,9 @@ async def cmd_price(message: Message) -> None:
 async def cmd_my_bookings(message: Message) -> None:
     rows = get_user_bookings(message.from_user.id)
     if not rows:
-        await message.answer("У тебя пока нет записей. Нажми «Записаться» 🙂")
+        await message.answer(
+            "У тебя пока нет предстоящих записей. Нажми «Записаться» 🙂"
+        )
         return
 
     lines = []
@@ -63,7 +66,7 @@ async def cmd_my_bookings(message: Message) -> None:
             ]
         )
     await message.answer(
-        "Твои записи:\n" + "\n".join(lines),
+        "Твои предстоящие записи:\n" + "\n".join(lines),
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
     )
 
@@ -74,9 +77,13 @@ async def cancel_ask(callback: CallbackQuery) -> None:
     booking_id = int(callback.data.split(":")[1])
     booking = get_booking(booking_id)
 
-    # отменять можно только свою запись
+    # отменять можно только свою активную запись
     if booking is None or booking["user_id"] != callback.from_user.id:
         await callback.answer("Эта запись не найдена", show_alert=True)
+        return
+
+    if booking["status"] != "active":
+        await callback.answer("Запись уже завершена", show_alert=True)
         return
 
     kb = InlineKeyboardMarkup(
@@ -111,17 +118,23 @@ async def cancel_do(callback: CallbackQuery) -> None:
         await callback.answer("Эта запись не найдена", show_alert=True)
         return
 
+    if booking["status"] != "active":
+        await callback.answer("Запись уже завершена", show_alert=True)
+        return
+
     delete_booking(booking_id)
     await callback.message.edit_text("✅ Запись отменена. Ждём тебя в другой раз!")
     await callback.answer("Отменено")
 
     if ADMIN_ID:
-        uname = f"@{booking['username']}" if booking["username"] else "без username"
+        uname = (
+            f"@{escape(booking['username'])}" if booking["username"] else "без username"
+        )
         await callback.bot.send_message(
             ADMIN_ID,
             "❌ Клиент отменил запись\n"
-            f"Клиент: {booking['full_name']} ({uname})\n"
-            f"Услуга: {booking['service']}\n"
+            f"Клиент: {escape(booking['full_name'])} ({uname})\n"
+            f"Услуга: {escape(booking['service'])}\n"
             f"Было: {_fmt_day(booking['date'])} в {booking['time']}",
         )
 
@@ -132,7 +145,7 @@ async def cancel_no(callback: CallbackQuery) -> None:
     booking_id = int(callback.data.split(":")[1])
     booking = get_booking(booking_id)
 
-    if booking is None:
+    if booking is None or booking["user_id"] != callback.from_user.id:
         await callback.message.edit_text("Запись не найдена.")
         await callback.answer()
         return

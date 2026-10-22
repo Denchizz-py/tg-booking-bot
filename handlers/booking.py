@@ -4,6 +4,7 @@
 """
 
 from datetime import datetime
+from html import escape
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -45,7 +46,7 @@ async def choose_service(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(service=service)
     await state.set_state(Booking.choosing_date)
     await callback.message.edit_text(
-        f"Услуга: <b>{service}</b>\n\nВыбери день:",
+        f"Услуга: <b>{escape(service)}</b>\n\nВыбери день:",
         reply_markup=dates_kb(),
     )
     await callback.answer()
@@ -83,7 +84,7 @@ async def choose_time(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(Booking.confirming)
     await callback.message.edit_text(
         "Проверь запись:\n\n"
-        f"Услуга: <b>{data['service']}</b>\n"
+        f"Услуга: <b>{escape(data['service'])}</b>\n"
         f"Дата: <b>{_fmt_date(data['date'])}</b>\n"
         f"Время: <b>{time_str}</b>\n\n"
         "Всё верно?",
@@ -116,7 +117,7 @@ async def do_confirm(callback: CallbackQuery, state: FSMContext) -> None:
 
     await callback.message.edit_text(
         "✅ Готово, ты записан!\n\n"
-        f"Услуга: <b>{data['service']}</b>\n"
+        f"Услуга: <b>{escape(data['service'])}</b>\n"
         f"Дата: <b>{_fmt_date(data['date'])}</b>\n"
         f"Время: <b>{data['time']}</b>"
     )
@@ -124,12 +125,12 @@ async def do_confirm(callback: CallbackQuery, state: FSMContext) -> None:
 
     # Уведомляем админа о новой записи
     if ADMIN_ID:
-        uname = f"@{user.username}" if user.username else "без username"
+        uname = f"@{escape(user.username)}" if user.username else "без username"
         await callback.bot.send_message(
             ADMIN_ID,
             "🔔 Новая запись!\n"
-            f"Клиент: {user.full_name} ({uname})\n"
-            f"Услуга: {data['service']}\n"
+            f"Клиент: {escape(user.full_name)} ({uname})\n"
+            f"Услуга: {escape(data['service'])}\n"
             f"Дата: {_fmt_date(data['date'])} в {data['time']}",
         )
 
