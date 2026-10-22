@@ -1,8 +1,21 @@
 # Секреты — никогда не выкладываем в интернет
 .env
+.env.*
+!.env.example
 
-# База данных (создаётся автоматически)
-data.db
+# База данных (создаётся автоматически).
+# В ней личные данные клиентов: Telegram ID, имена, записи.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sql
+*.dump
+*.bak
+*.backup
+backups/
 
 # Логи
 *.log
@@ -16,6 +29,8 @@ venv/
 # Файлы редактора
 .vscode/
 .idea/
+.skills/
+.koda/
 
 # Временные файлы Windows
 Thumbs.db
